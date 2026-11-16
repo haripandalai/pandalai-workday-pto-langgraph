@@ -42,6 +42,10 @@ class Settings:
     anthropic_api_key: str = field(default_factory=lambda: _env("ANTHROPIC_API_KEY"))
     model: str = field(default_factory=lambda: _env("MODEL", "claude-sonnet-5-5"))
 
+    # The one worker this service acts for (non-secret). Given to the agent so it never has to search workers.
+    worker_name: str = field(default_factory=lambda: _env("WORKER_NAME"))
+    worker_id: str = field(default_factory=lambda: _env("WORKER_ID"))
+
     allow_regex: str = field(default_factory=lambda: _env("TOOL_ALLOW_REGEX", DEFAULT_ALLOW))
     deny_regex: str = field(default_factory=lambda: _env("TOOL_DENY_REGEX", DEFAULT_DENY))
     write_regex: str = field(default_factory=lambda: _env("TOOL_WRITE_REGEX", DEFAULT_WRITE))

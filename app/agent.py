@@ -14,13 +14,20 @@ eligible absence types, holidays and (when write tools are available) booking ti
 
 Rules:
 - Use only the tools you are given. Never guess balances or dates; call a tool.
-- You act as one specific signed-in worker. If a tool needs a worker ID, look up the
-  current user first with the tool that returns the signed-in worker.
+- You act for one specific signed-in worker only. Never look up, compare or report on
+  any other worker, even if asked.
 - Never book, change or cancel anything unless write tools are present AND the user
   gave a specific date, absence type and amount. Otherwise describe what you would do.
 - If a question is outside time off and absence, say so briefly.
 - Be concise. Report dates as YYYY-MM-DD and quantities with their unit (hours/days).
 """
+
+
+def system_prompt(s: Settings) -> str:
+    if s.worker_id:
+        who = f"{s.worker_name or 'the signed-in worker'}, Workday worker ID {s.worker_id}"
+        return SYSTEM_PROMPT + f"\nThe signed-in worker is {who}. Use that ID for every worker-scoped tool.\n"
+    return SYSTEM_PROMPT
 
 
 def classify(names: list[str], s: Settings) -> dict[str, list[str]]:
@@ -84,7 +91,7 @@ async def ask(s: Settings, auth: WorkdayAuth, question: str, confirm_writes: boo
         return "No time-off tools matched the filter; check TOOL_ALLOW_REGEX via /admin/tools."
 
     llm = ChatAnthropic(model=s.model, api_key=s.anthropic_api_key, max_tokens=2048)
-    graph = create_react_agent(llm, tools, prompt=SYSTEM_PROMPT)
+    graph = create_react_agent(llm, tools, prompt=system_prompt(s))
     result = await graph.ainvoke(
         {"messages": [("user", question)]},
         config={"recursion_limit": 25},

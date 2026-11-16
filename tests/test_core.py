@@ -86,3 +86,15 @@ def test_get_access_token_paths(tmp_path, monkeypatch):
     assert asyncio.run(a.get_access_token()) == "new"
     assert seen["grant_type"] == "refresh_token" and seen["refresh_token"] == "r1"
     assert a.status()["connected"] is True
+
+
+def test_system_prompt_includes_worker_only_when_configured():
+    from app.agent import system_prompt
+    assert "worker ID" not in system_prompt(S()).split("Rules:")[1].split("Be concise")[1]
+    p = system_prompt(S(worker_name="Logan McNeil", worker_id="abc123"))
+    assert "Logan McNeil" in p and "abc123" in p
+
+
+def test_staffing_worker_search_stays_rejected():
+    out = classify(["find_staffing_workers", "find_absence_balances"], S())
+    assert out["rejected"] == ["find_staffing_workers"] and out["read"] == ["find_absence_balances"]

@@ -32,6 +32,10 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: WORKER_NAME        # the one worker this service acts for (non-secret)
+        value: Logan McNeil
+      - key: WORKER_ID
+        value: 693618e08cc11000cb2ec622bc370001
       - key: MODEL
         value: claude-sonnet-5-5
       - key: ENABLE_WRITE_TOOLS
