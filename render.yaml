@@ -1,0 +1,38 @@
+# Render Blueprint. Persistent disks need a paid instance type (starter or above).
+services:
+  - type: web
+    name: pandalai-workday-pto
+    runtime: python
+    plan: starter
+    region: oregon
+    numInstances: 1            # OAuth state + token file live on one instance
+    buildCommand: pip install -r requirements.txt
+    # --no-access-log: the claude.ai URL contains SERVICE_KEY, so never log request paths.
+    startCommand: uvicorn app.server:app --host 0.0.0.0 --port $PORT --no-access-log
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: token-store
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SERVICE_KEY        # secret in the claude.ai connector URL
+        generateValue: true
+      - key: ADMIN_KEY          # protects /auth/login, /auth/status, /admin/tools
+        generateValue: true
+      - key: TOKEN_STORE_PATH
+        value: /data/workday_token.json
+      - key: WORKDAY_TENANT
+        value: wxqmdmpnjn_extdev
+      - key: WORKDAY_CLIENT_ID
+        sync: false
+      - key: WORKDAY_CLIENT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: MODEL
+        value: claude-sonnet-5-5
+      - key: ENABLE_WRITE_TOOLS
+        value: "false"
