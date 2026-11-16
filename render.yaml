@@ -39,4 +39,4 @@ services:
       - key: MODEL
         value: claude-sonnet-5-5
       - key: ENABLE_WRITE_TOOLS
-        value: "false"
+        value: "true"             # booking tool is still gated by confirm_writes=true per call

@@ -1,6 +1,6 @@
 {
  "name": "PTO Time Off Agent",
- "description": "Read-only time off agent: PTO/STO balances, booked time off, eligible absence types, valid dates, holidays and statuses for the signed-in worker. Called by a LangGraph service, not directly by claude.ai.",
+ "description": "Time off agent: PTO/STO balances, booked time off, eligible absence types, valid dates, holidays and statuses for the signed-in worker, plus booking a time off request. Called by a LangGraph service, not directly by claude.ai.",
  "url": "https://external-agent.example.com/pto-time-off-agent",
  "provider": {
   "id": "Provider=SELF-BUILT"
@@ -25,8 +25,8 @@
  "skills": [
   {
    "id": "pto_read",
-   "name": "PTO read",
-   "description": "Look up PTO/STO balances, upcoming and past time off, eligible absence types, valid time off dates, holiday calendar and absence statuses, without changing anything.",
+   "name": "PTO read and book",
+   "description": "Look up PTO/STO balances, upcoming and past time off, eligible absence types, valid time off dates, holiday calendar and absence statuses, and create a time off request for the signed-in worker.",
    "inputModes": [
     {
      "type": "application/json"
@@ -105,6 +105,13 @@
      "description": "find_staffing_workers",
      "agent_resource": {
       "id": "30aeb92af72e100063e2955a0eff0000"
+     }
+    },
+    {
+     "tool_name": "create_worker_time_off_request",
+     "description": "create_worker_time_off_request",
+     "agent_resource": {
+      "id": "e2be8dacc8b110000f2a801242ff0000"
      }
     }
    ]
