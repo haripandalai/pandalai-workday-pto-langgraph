@@ -1,0 +1,113 @@
+{
+ "name": "PTO Time Off Agent",
+ "description": "Read-only time off agent: PTO/STO balances, booked time off, eligible absence types, valid dates, holidays and statuses for the signed-in worker. Called by a LangGraph service, not directly by claude.ai.",
+ "url": "https://external-agent.example.com/pto-time-off-agent",
+ "provider": {
+  "id": "Provider=SELF-BUILT"
+ },
+ "platform": {
+  "id": "Platform=OTHER"
+ },
+ "version": "1.0.0",
+ "capabilities": {
+  "streaming": false
+ },
+ "defaultInputModes": [
+  {
+   "type": "application/json"
+  }
+ ],
+ "defaultOutputModes": [
+  {
+   "type": "application/json"
+  }
+ ],
+ "skills": [
+  {
+   "id": "pto_read",
+   "name": "PTO read",
+   "description": "Look up PTO/STO balances, upcoming and past time off, eligible absence types, valid time off dates, holiday calendar and absence statuses, without changing anything.",
+   "inputModes": [
+    {
+     "type": "application/json"
+    }
+   ],
+   "outputModes": [
+    {
+     "type": "application/json"
+    }
+   ],
+   "tags": [
+    {
+     "tag": "pto"
+    }
+   ]
+  }
+ ],
+ "workdayConfig": [
+  {
+   "skillId": "pto_read",
+   "executionMode": {
+    "id": "Mode=Delegate"
+   },
+   "workdayResources": [
+    {
+     "tool_name": "find_absence_balances",
+     "description": "find_absence_balances",
+     "agent_resource": {
+      "id": "3cf962648a6a10001482cdbe30920000"
+     }
+    },
+    {
+     "tool_name": "find_holiday_calendar",
+     "description": "find_holiday_calendar",
+     "agent_resource": {
+      "id": "e869faf972be100014a646f492650000"
+     }
+    },
+    {
+     "tool_name": "find_worker_eligible_absence_types",
+     "description": "find_worker_eligible_absence_types",
+     "agent_resource": {
+      "id": "70de442fca1c10001402239a71a00000"
+     }
+    },
+    {
+     "tool_name": "find_worker_time_off_details",
+     "description": "find_worker_time_off_details",
+     "agent_resource": {
+      "id": "8aeaedfc4f3a10001cd749cf643f0000"
+     }
+    },
+    {
+     "tool_name": "find_worker_valid_time_off_dates",
+     "description": "find_worker_valid_time_off_dates",
+     "agent_resource": {
+      "id": "e7c82707946210001b4e44f36eb40000"
+     }
+    },
+    {
+     "tool_name": "list_time_off_entry_statuses",
+     "description": "list_time_off_entry_statuses",
+     "agent_resource": {
+      "id": "20cbd71fae9b1000169b1d5c0d350000"
+     }
+    },
+    {
+     "tool_name": "list_leave_event_statuses",
+     "description": "list_leave_event_statuses",
+     "agent_resource": {
+      "id": "94474a8e976a100014a69a8d7dec0000"
+     }
+    },
+    {
+     "tool_name": "find_staffing_workers",
+     "description": "find_staffing_workers",
+     "agent_resource": {
+      "id": "30aeb92af72e100063e2955a0eff0000"
+     }
+    }
+   ]
+  }
+ ]
+}

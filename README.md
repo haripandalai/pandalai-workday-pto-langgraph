@@ -48,6 +48,16 @@ Verified locally (tests and a live local run):
 6. Check `https://<your-service>/auth/status?key=<ADMIN_KEY>` (shows connection state and expiry, never tokens), then `https://<your-service>/admin/tools?key=<ADMIN_KEY>` to review which tools passed the filter. Adjust `TOOL_ALLOW_REGEX` / `TOOL_DENY_REGEX` in Render and redeploy until only PTO/STO/absence tools are in `read` (and `write`).
 7. In claude.ai add a custom connector with URL `https://<your-service>.onrender.com/mcp/<SERVICE_KEY>`. No OAuth settings are needed on the claude.ai side.
 
+## Dedicated read-only Workday agent (hard boundary)
+
+The Default 3P Agent holds ~434 tools, and the regex filter only limits what *this service* offers. To make the limit real, a second agent, **PTO Time Off Agent**, was registered in the tenant with only 8 read-only tools:
+`find_absence_balances`, `find_holiday_calendar`, `find_worker_eligible_absence_types`, `find_worker_time_off_details`, `find_worker_valid_time_off_dates`, `list_time_off_entry_statuses`, `list_leave_event_statuses`, `find_staffing_workers`.
+
+- Registered with `POST https://api.odp.wcp.workday.com/asor/v1/agentDefinition` (header `wd-agent-tenant-alias: wxqmdmpnjn_extdev`), body in `registration/pto-agent-definition.json`. Tool IDs were copied from the Default 3P Agent's own definition (`GET /asor/v1/agentDefinition/<id>`), so they are exact for this tenant.
+- The ASOR calls need the Developer Site **Copy Token** (`wdcli` tokens are rejected). Save it from the clipboard without printing it: `umask 077; pbpaste | tr -d '[:space:]' > ~/.asor_token`, and delete the file afterwards.
+- Write tools (`create_worker_time_off_request`, `update_worker_time_off_entry`, leave-of-absence request) are deliberately left out. Add them to the skill and re-POST (same name and version updates it) only when booking is wanted.
+- In Workday: Agent Registry > PTO Time Off Agent > Credentials: set the Redirect URI to `https://pandalai-workday-pto.onrender.com/auth/callback`, generate a client secret, then Configure Agent (Available To, enable the skill) and Activate. Put that agent's client ID/secret into Render as `WORKDAY_CLIENT_ID` / `WORKDAY_CLIENT_SECRET`. The Default 3P Agent keeps the claude.ai Redirect URI.
+
 ## Configuration
 
 | Variable | Purpose |
