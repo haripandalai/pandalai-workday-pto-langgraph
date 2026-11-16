@@ -58,6 +58,19 @@ The Default 3P Agent holds ~434 tools, and the regex filter only limits what *th
 - Write tools (`create_worker_time_off_request`, `update_worker_time_off_entry`, leave-of-absence request) are deliberately left out. Add them to the skill and re-POST (same name and version updates it) only when booking is wanted.
 - In Workday: Agent Registry > PTO Time Off Agent > Credentials: set the Redirect URI to `https://pandalai-workday-pto.onrender.com/auth/callback`, generate a client secret, then Configure Agent (Available To, enable the skill) and Activate. Put that agent's client ID/secret into Render as `WORKDAY_CLIENT_ID` / `WORKDAY_CLIENT_SECRET`. The Default 3P Agent keeps the claude.ai Redirect URI.
 
+## Calling it from Google ADK
+
+The endpoint is a plain MCP server, so any MCP client works, including Google ADK. `examples/adk_client.py` connects with ADK's `McpToolset` and either lists the tools (no LLM key needed) or runs a small ADK agent:
+
+```bash
+python3 -m venv .venv-adk && . .venv-adk/bin/activate && pip install -r examples/requirements.txt
+# copy SERVICE_KEY from Render to the clipboard first, so it never appears on screen
+PTO_SERVICE_KEY=$(pbpaste | tr -d '[:space:]') python examples/adk_client.py
+PTO_SERVICE_KEY=$(pbpaste | tr -d '[:space:]') GOOGLE_API_KEY=... python examples/adk_client.py --ask "What are my PTO and STO balances?"
+```
+
+Notes: ADK sees one tool, `ask_time_off`. The reasoning inside it still runs on Claude (Anthropic key on Render). Every caller that uses the URL acts as the signed-in Workday user, so separate callers cannot be told apart or revoked individually unless multiple keys are added.
+
 ## Configuration
 
 | Variable | Purpose |
