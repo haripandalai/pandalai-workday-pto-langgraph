@@ -7,7 +7,7 @@ Environment:
   PTO_SERVICE_KEY   the service's SERVICE_KEY (the secret path segment). Required.
   PTO_BASE_URL      default https://pandalai-workday-pto.onrender.com
   GOOGLE_API_KEY    only for --ask (Gemini via ADK)
-  ADK_MODEL         default gemini-2.0-flash
+  ADK_MODEL         default gemini-3.8-flash
 """
 import argparse
 import asyncio
@@ -49,7 +49,7 @@ async def ask(question: str) -> None:
     ts = toolset()
     agent = LlmAgent(
         name="hr_assistant",
-        model=os.environ.get("ADK_MODEL", "gemini-2.0-flash"),
+        model=os.environ.get("ADK_MODEL", "gemini-3.8-flash"),
         instruction=(
             "For PTO, STO and time off questions, call ask_time_off with the user's question. "
             "Never set confirm_writes=true unless the user has explicitly agreed to a specific "
