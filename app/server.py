@@ -114,11 +114,25 @@ web = Starlette(
 
 
 # ---- top-level ASGI dispatcher: /mcp/<SERVICE_KEY> -> FastMCP --------------------
+# SERVICE_KEY may contain '/', '+' or '=' (Render's generateValue is base64), so match it as
+# a prefix of the path instead of splitting the path on '/'.
+MCP_PREFIX = "/mcp/"
+
+
+def _strip_key(path: str) -> str | None:
+    """Return the remainder after /mcp/<SERVICE_KEY> ('' or '/...'), or None if the key is wrong."""
+    key = settings.service_key
+    tail = path[len(MCP_PREFIX):]
+    if not key or not _same(tail[: len(key)], key):
+        return None
+    rest = tail[len(key):]
+    return rest if rest == "" or rest.startswith("/") else None
+
+
 async def app(scope, receive, send):
-    if scope["type"] == "http" and scope["path"].startswith("/mcp/"):
-        parts = scope["path"].split("/", 3)  # ['', 'mcp', '<key>', rest?]
-        if len(parts) >= 3 and _same(parts[2], settings.service_key):
-            rest = "/" + parts[3] if len(parts) == 4 and parts[3] else ""
+    if scope["type"] == "http" and scope["path"].startswith(MCP_PREFIX):
+        rest = _strip_key(scope["path"])
+        if rest is not None:
             new_path = "/mcp" + rest
             scope = dict(scope, path=new_path, raw_path=new_path.encode())
             return await mcp_app(scope, receive, send)

@@ -98,3 +98,18 @@ def test_system_prompt_includes_worker_only_when_configured():
 def test_staffing_worker_search_stays_rejected():
     out = classify(["find_staffing_workers", "find_absence_balances"], S())
     assert out["rejected"] == ["find_staffing_workers"] and out["read"] == ["find_absence_balances"]
+
+
+def test_service_key_with_slash_plus_equals_is_accepted():
+    import app.server as srv
+    object.__setattr__(srv.settings, "service_key", "ab/cd+ef=gh")
+    assert srv._strip_key("/mcp/ab/cd+ef=gh") == ""
+    assert srv._strip_key("/mcp/ab/cd+ef=gh/") == "/"
+    assert srv._strip_key("/mcp/ab/cd+ef=gh/extra") == "/extra"
+    assert srv._strip_key("/mcp/ab/cd+ef=gh-tail") is None   # key must end at a path boundary
+    assert srv._strip_key("/mcp/ab/cd") is None
+    assert srv._strip_key("/mcp/") is None
+    object.__setattr__(srv.settings, "service_key", "ab/cd+ef=gh/")   # key that itself ends in '/'
+    assert srv._strip_key("/mcp/ab/cd+ef=gh/") == ""
+    object.__setattr__(srv.settings, "service_key", "")
+    assert srv._strip_key("/mcp/") is None                    # empty key never matches
