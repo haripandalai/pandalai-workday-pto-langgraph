@@ -102,6 +102,26 @@ added, because Workday's safety filter (S22, "Illegal Activity", probabilistic) 
 next to a booking request. Workday's own approval step for non-read-only tools is the second gate. The keyword
 check is a heuristic, not a security boundary. Pass the returned `context_id` back to continue a chat.
 
+### Path 1 vs Path 2: what we found
+
+| | Path 1 `ask_time_off` | Path 2 `ask_workday_agent` |
+|---|---|---|
+| Who reasons | our LangGraph agent (Claude) over the gateway MCP | Workday's harness (`pto-agent`) |
+| Route | MCP tools by OAuth client | A2A `message/send` |
+| Reads (balances, time off) | works | works, multi-turn via `context_id` |
+| Identity | worker ID supplied by env (`WORKER_ID`) | worker ID is in the `.agent` prompt (no who-am-I tool) |
+| Writes | gated by `confirm_writes`; booking not tested here | reach Workday's approval check, then stop |
+
+- **Write approval lives in Workday's chat front-ends.** Workday's answer: the agent pauses before a non-read-only tool
+  and the approval appears in Workday Chat or Sana, not as a business process, so nothing shows in the Inbox. Over A2A the
+  reply says to approve in the Workday app and nothing is pending. Whether A2A has an `input-required` state for external
+  clients is undocumented (open question for the Workday community forum). Book in Agent Chat with `pto-agent`.
+- **S22 safety refusal** ("Illegal Activity") is a probabilistic false positive that cannot be tuned. A "read-only" prefix
+  next to a booking verb triggered it, so none is added. Send the user's words plainly.
+- **Redeploys reset activation** of the Workday-hosted agent (Available To, skill status, Activate Agent).
+- Workday evaluates both the user's access to the agent and to the APIs behind its tools, so Available To groups also
+  need the domain security for those tools.
+
 ## Configuration
 
 | Variable | Purpose |
