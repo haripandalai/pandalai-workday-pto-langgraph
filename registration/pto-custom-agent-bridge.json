@@ -1,0 +1,64 @@
+{
+  "name": "PTO Workday Agent Bridge",
+  "description": "External entry point to the Workday-hosted custom agent pto-agent (Path 2). The external client calls pto-agent as a tool and Workday orchestrates the tools.",
+  "url": "https://external-agent.example.com/pto-workday-agent-bridge",
+  "provider": {
+    "id": "Provider=SELF-BUILT"
+  },
+  "platform": {
+    "id": "Platform=OTHER"
+  },
+  "version": "1.0.0",
+  "capabilities": {
+    "streaming": false
+  },
+  "defaultInputModes": [
+    {
+      "type": "application/json"
+    }
+  ],
+  "defaultOutputModes": [
+    {
+      "type": "application/json"
+    }
+  ],
+  "skills": [
+    {
+      "id": "pto_agent_as_tool",
+      "name": "pto-agent as a tool",
+      "description": "Ask the Workday-hosted time off agent pto-agent about PTO, STO and absence for the signed-in worker.",
+      "inputModes": [
+        {
+          "type": "application/json"
+        }
+      ],
+      "outputModes": [
+        {
+          "type": "application/json"
+        }
+      ],
+      "tags": [
+        {
+          "tag": "pto"
+        }
+      ]
+    }
+  ],
+  "workdayConfig": [
+    {
+      "skillId": "pto_agent_as_tool",
+      "executionMode": {
+        "id": "Mode=Delegate"
+      },
+      "workdayResources": [
+        {
+          "tool_name": "pto-agent",
+          "description": "Workday-hosted time off agent",
+          "agent_resource": {
+            "id": "eb029fba8fe110010540a7ca5b550000"
+          }
+        }
+      ]
+    }
+  ]
+}

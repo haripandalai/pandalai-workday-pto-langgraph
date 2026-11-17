@@ -39,6 +39,13 @@ class Settings:
 
     token_path: str = field(default_factory=lambda: _env("TOKEN_STORE_PATH", "/data/workday_token.json"))
 
+    # Path 2: the Workday-hosted custom agent, reached over A2A with its own OAuth client
+    # (the "PTO Workday Agent Bridge" external agent) and its own token file.
+    a2a_client_id: str = field(default_factory=lambda: _env("A2A_CLIENT_ID"))
+    a2a_client_secret: str = field(default_factory=lambda: _env("A2A_CLIENT_SECRET"))
+    a2a_token_path: str = field(default_factory=lambda: _env("A2A_TOKEN_STORE_PATH", "/data/workday_a2a_token.json"))
+    pto_agent_wid: str = field(default_factory=lambda: _env("PTO_AGENT_WID"))  # Integration IDs > Workday ID
+
     anthropic_api_key: str = field(default_factory=lambda: _env("ANTHROPIC_API_KEY"))
     model: str = field(default_factory=lambda: _env("MODEL", "claude-sonnet-5-5"))
 
@@ -58,6 +65,14 @@ class Settings:
     @property
     def redirect_uri(self) -> str:
         return f"{self.public_base_url}/auth/callback"
+
+    @property
+    def a2a_redirect_uri(self) -> str:
+        return f"{self.public_base_url}/auth/a2a/callback"
+
+    @property
+    def a2a_url(self) -> str:
+        return _env("PTO_AGENT_A2A_URL") or f"{self.agent_host}/v1/a2a/{self.tenant}/{self.pto_agent_wid}"
 
     def allow(self) -> re.Pattern:
         return re.compile(self.allow_regex, re.I)

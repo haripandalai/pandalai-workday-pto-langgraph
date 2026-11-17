@@ -113,3 +113,74 @@ def test_service_key_with_slash_plus_equals_is_accepted():
     assert srv._strip_key("/mcp/ab/cd+ef=gh/") == ""
     object.__setattr__(srv.settings, "service_key", "")
     assert srv._strip_key("/mcp/") is None                    # empty key never matches
+
+
+# ---- Path 2: Workday-hosted agent over A2A ---------------------------------------------
+from app import a2a_agent
+
+
+def test_a2a_urls_and_second_client_login(tmp_path):
+    s = S(pto_agent_wid="abc123", a2a_client_id="bridge-id", a2a_client_secret="bridge-sec")
+    assert s.a2a_url == "https://odp.agent.workday.com/v1/a2a/wxqmdmpnjn_extdev/abc123"
+    assert s.a2a_redirect_uri == "https://svc.example.com/auth/a2a/callback"
+    a = WorkdayAuth(
+        s, TokenStore(str(tmp_path / "a2a.json")),
+        client_id=s.a2a_client_id, client_secret=s.a2a_client_secret, redirect_uri=s.a2a_redirect_uri,
+    )
+    a._meta = {"authorization_endpoint": "https://odp.agent.workday.com/auth/authorize/t", "token_endpoint": "x"}
+    q = parse_qs(urlparse(asyncio.run(a.login_url())).query)
+    assert q["client_id"] == ["bridge-id"]
+    assert q["redirect_uri"] == ["https://svc.example.com/auth/a2a/callback"]
+    assert q["code_challenge_method"] == ["S256"]
+    # the default client is untouched
+    d = WorkdayAuth(S(token_path=str(tmp_path / "d.json")))
+    d._meta = a._meta
+    assert parse_qs(urlparse(asyncio.run(d.login_url())).query)["client_id"] == ["cid"]
+
+
+def test_a2a_parse_result_variants():
+    ok = {"result": {"contextId": "ctx", "status": {"state": "completed"},
+                     "artifacts": [{"parts": [{"kind": "text", "text": "PTO 200h"}]}]}}
+    assert a2a_agent.parse_result(ok) == ("completed", "PTO 200h", "ctx")
+    hist = {"result": {"status": {"state": "completed"}, "history": [
+        {"role": "user", "parts": [{"kind": "text", "text": "q"}]},
+        {"role": "agent", "parts": [{"kind": "text", "text": "from history"}]}]}}
+    assert a2a_agent.parse_result(hist)[1] == "from history"
+    err = {"error": {"code": -32602, "message": "Invalid or unsupported credentials"}}
+    state, text, _ = a2a_agent.parse_result(err)
+    assert state == "error" and "Invalid or unsupported credentials" in text
+
+
+def test_a2a_ask_read_only_by_default_and_needs_login(tmp_path, monkeypatch):
+    s = S(pto_agent_wid="w", enable_write_tools=True)
+    seen = {}
+
+    class R:
+        status_code = 200
+        def json(self):
+            return {"result": {"status": {"state": "completed"}, "contextId": "c1",
+                               "artifacts": [{"parts": [{"kind": "text", "text": "ok"}]}]}}
+
+    class C:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def post(self, url, headers=None, json=None):
+            seen["text"] = json["params"]["message"]["parts"][0]["text"]
+            seen["auth"] = headers["Authorization"]
+            return R()
+
+    monkeypatch.setattr(a2a_agent.httpx, "AsyncClient", C)
+    store = TokenStore(str(tmp_path / "t.json"))
+    auth = WorkdayAuth(s, store)
+    assert "not connected" in asyncio.run(a2a_agent.ask(s, auth, "balances?"))
+    store.save({"access_token": "tok", "refresh_token": "r", "expires_at": time.time() + 3600, "obtained_at": 0})
+    out = asyncio.run(a2a_agent.ask(s, auth, "balances?"))
+    assert out.startswith("ok") and "[context_id: c1]" in out
+    assert seen["text"].startswith("Read-only request") and seen["auth"] == "Bearer tok"
+    asyncio.run(a2a_agent.ask(s, auth, "book 8h on 2027-02-10", confirm_writes=True))
+    assert seen["text"] == "book 8h on 2027-02-10"
+    # write flag on the request but writes disabled on the service -> stays read-only
+    s2 = S(pto_agent_wid="w", enable_write_tools=False)
+    asyncio.run(a2a_agent.ask(s2, WorkdayAuth(s2, store), "book", confirm_writes=True))
+    assert seen["text"].startswith("Read-only request")

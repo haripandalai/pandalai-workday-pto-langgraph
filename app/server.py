@@ -15,12 +15,20 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from starlette.routing import Route
 
-from . import agent
+from . import a2a_agent, agent
 from .config import get_settings
-from .workday_auth import WorkdayAuth
+from .workday_auth import TokenStore, WorkdayAuth
 
 settings = get_settings()
 auth = WorkdayAuth(settings)
+# Second sign-in: the bridge agent's OAuth client, used to call the Workday-hosted pto-agent over A2A.
+a2a_auth = WorkdayAuth(
+    settings,
+    TokenStore(settings.a2a_token_path),
+    client_id=settings.a2a_client_id,
+    client_secret=settings.a2a_client_secret,
+    redirect_uri=settings.a2a_redirect_uri,
+)
 
 # ---- MCP surface for claude.ai ---------------------------------------------
 mcp = FastMCP(
@@ -43,6 +51,19 @@ async def ask_time_off(question: str, confirm_writes: bool = False) -> str:
     specific booking (date, type, amount); otherwise the assistant stays read-only.
     """
     return await agent.ask(settings, auth, question, confirm_writes=confirm_writes)
+
+
+@mcp.tool()
+async def ask_workday_agent(question: str, confirm_writes: bool = False, context_id: str = "") -> str:
+    """Ask the Workday-hosted time-off agent (Workday runs the reasoning and the tools).
+
+    Same topics as ask_time_off: PTO/STO balances, booked time off, eligible absence types, holidays.
+    confirm_writes: leave False. Set True ONLY after the user has explicitly agreed to a specific
+    booking (date, type, amount). context_id: pass the id from a previous answer to continue that chat.
+    """
+    return await a2a_agent.ask(
+        settings, a2a_auth, question, confirm_writes=confirm_writes, context_id=context_id or None
+    )
 
 
 mcp_app = mcp.streamable_http_app()  # must exist before session_manager is used
@@ -83,7 +104,29 @@ async def auth_callback(request: Request):
 async def auth_status(request: Request):
     if not _admin_ok(request):
         return PlainTextResponse("not found", status_code=404)
-    return JSONResponse(auth.status())
+    return JSONResponse({**auth.status(), "a2a": a2a_auth.status()})
+
+
+async def a2a_login(request: Request):
+    if not _admin_ok(request):
+        return PlainTextResponse("not found", status_code=404)
+    try:
+        return RedirectResponse(await a2a_auth.login_url())
+    except RuntimeError as e:
+        return PlainTextResponse(str(e), status_code=500)
+
+
+async def a2a_callback(request: Request):
+    code, state = request.query_params.get("code"), request.query_params.get("state")
+    if request.query_params.get("error"):
+        return PlainTextResponse("Workday sign-in was not completed.", status_code=400)
+    if not (code and state):
+        return PlainTextResponse("missing code/state", status_code=400)
+    try:
+        await a2a_auth.exchange_code(code, state)
+    except Exception as e:
+        return PlainTextResponse(f"Sign-in failed: {e}", status_code=400)
+    return HTMLResponse("<h3>Workday agent connected.</h3><p>You can close this tab.</p>")
 
 
 async def admin_tools(request: Request):
@@ -107,6 +150,8 @@ web = Starlette(
         Route("/auth/login", auth_login),
         Route("/auth/callback", auth_callback),
         Route("/auth/status", auth_status),
+        Route("/auth/a2a/login", a2a_login),
+        Route("/auth/a2a/callback", a2a_callback),
         Route("/admin/tools", admin_tools),
     ],
     lifespan=lifespan,

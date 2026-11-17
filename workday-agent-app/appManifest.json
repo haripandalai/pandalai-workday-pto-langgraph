@@ -1,0 +1,7 @@
+{
+    "id": "684cfe5ced8c426380479c4fd697056a",
+    "referenceId": "ptoTimeOffAgentApp_dtjskm",
+    "name": "PTO Time Off Agent App",
+    "description": "A Workday-hosted agent for PTO, STO and absence: one agent and two skills, one that reads and one that books, built on prebuilt Agent-Ready tools. Path 2: Workday runs the orchestration.",
+    "organizationId": "2fd3706f-e9ab-4455-a7ef-0a971b075603"
+}

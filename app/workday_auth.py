@@ -57,9 +57,21 @@ class TokenStore:
 class WorkdayAuth:
     PENDING_TTL = 600
 
-    def __init__(self, settings: Settings, store: TokenStore | None = None):
+    def __init__(
+        self,
+        settings: Settings,
+        store: TokenStore | None = None,
+        *,
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        redirect_uri: str | None = None,
+    ):
+        """One instance per OAuth client: the default one (MCP tools) or the A2A bridge client."""
         self.s = settings
         self.store = store or TokenStore(settings.token_path)
+        self.client_id = settings.client_id if client_id is None else client_id
+        self.client_secret = settings.client_secret if client_secret is None else client_secret
+        self.redirect_uri = settings.redirect_uri if redirect_uri is None else redirect_uri
         self._pending: dict[str, tuple[str, float]] = {}  # state -> (verifier, created)
         self._lock = asyncio.Lock()
         self._meta: dict | None = None
@@ -82,8 +94,8 @@ class WorkdayAuth:
 
     # ---- login ------------------------------------------------------------
     async def login_url(self) -> str:
-        if not (self.s.client_id and self.s.client_secret):
-            raise RuntimeError("WORKDAY_CLIENT_ID / WORKDAY_CLIENT_SECRET are not set")
+        if not (self.client_id and self.client_secret):
+            raise RuntimeError("the OAuth client ID / secret for this sign-in are not set")
         authorize, _ = await self.endpoints()
         now = time.time()
         self._pending = {k: v for k, v in self._pending.items() if now - v[1] < self.PENDING_TTL}
@@ -92,8 +104,8 @@ class WorkdayAuth:
         self._pending[state] = (verifier, now)
         params = {
             "response_type": "code",
-            "client_id": self.s.client_id,
-            "redirect_uri": self.s.redirect_uri,
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
             "state": state,
             "code_challenge": challenge,
             "code_challenge_method": "S256",
@@ -110,9 +122,9 @@ class WorkdayAuth:
         data = {
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": self.s.redirect_uri,
-            "client_id": self.s.client_id,
-            "client_secret": self.s.client_secret,
+            "redirect_uri": self.redirect_uri,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
             "code_verifier": entry[0],
         }
         await self._token_request(token_url, data, previous=None)
@@ -151,8 +163,8 @@ class WorkdayAuth:
                     {
                         "grant_type": "refresh_token",
                         "refresh_token": rec["refresh_token"],
-                        "client_id": self.s.client_id,
-                        "client_secret": self.s.client_secret,
+                        "client_id": self.client_id,
+                        "client_secret": self.client_secret,
                     },
                     previous=rec,
                 )

@@ -71,6 +71,34 @@ PTO_SERVICE_KEY=$(pbpaste | tr -d '[:space:]') GOOGLE_API_KEY=... python example
 
 Notes: ADK sees one tool, `ask_time_off`. The reasoning inside it still runs on Claude (Anthropic key on Render). Every caller that uses the URL acts as the signed-in Workday user, so separate callers cannot be told apart or revoked individually unless multiple keys are added.
 
+## Path 2: the Workday-hosted agent (`ask_workday_agent`)
+
+Besides `ask_time_off` (our LangGraph agent drives Workday's tools), the service exposes
+`ask_workday_agent`, which forwards the question to the custom agent **`pto-agent`** that runs on
+Workday's own harness (app in `workday-agent-app/`). Workday does the reasoning and tool calls; this
+service only signs in, refreshes the token and relays the question over **A2A** (JSON-RPC `message/send`).
+No Anthropic key is needed for this tool.
+
+```mermaid
+flowchart LR
+  C[claude.ai / ADK / planner] -- MCP --> R[Render service]
+  R -- "A2A message/send<br/>Bearer (lmcneil, refreshed)" --> G[Agent Gateway<br/>/v1/a2a/tenant/pto-agent WID]
+  G --> W[pto-agent on Workday's harness]
+```
+
+One-time setup:
+1. Register the bridge external agent (`registration/pto-custom-agent-bridge.json`, POST to ASOR) and
+   activate it: skill Enabled, Available To includes `lmcneil`.
+2. Its Credentials tab: **Redirect URI** = `https://<service>.onrender.com/auth/a2a/callback`, generate the
+   client secret. Set `A2A_CLIENT_ID` / `A2A_CLIENT_SECRET` in Render (the Blueprint prompts for them).
+3. Open `https://<service>.onrender.com/auth/a2a/login?key=<ADMIN_KEY>` once and sign in as `lmcneil`.
+4. Check `/auth/status?key=<ADMIN_KEY>`: the `a2a` block shows `connected` and `has_refresh_token`.
+
+Notes: the agent card is at `https://odp.agent.workday.com/v1/a2a/<tenant>/<pto-agent WID>/.well-known/agent-card.json`.
+A Workday-hosted agent is **not** exposed as an MCP tool by the gateway (`tools/list` is empty); A2A is the route.
+Writes: the tool prefixes a read-only instruction unless `confirm_writes=true` and `ENABLE_WRITE_TOOLS=true`;
+that is a prompt-level guard, not a hard boundary. Pass the returned `context_id` back to continue a chat.
+
 ## Configuration
 
 | Variable | Purpose |

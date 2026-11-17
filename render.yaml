@@ -30,6 +30,12 @@ services:
         sync: false
       - key: WORKDAY_CLIENT_SECRET
         sync: false
+      - key: A2A_CLIENT_ID          # the "PTO Workday Agent Bridge" external agent's OAuth client
+        sync: false
+      - key: A2A_CLIENT_SECRET
+        sync: false
+      - key: PTO_AGENT_WID          # Workday ID of the Workday-hosted pto-agent (Integration IDs)
+        value: eb029fba8fe110010540a7ca5b550000
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: WORKER_NAME        # the one worker this service acts for (non-secret)
