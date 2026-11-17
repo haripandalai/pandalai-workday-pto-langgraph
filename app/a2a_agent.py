@@ -5,6 +5,7 @@ the OAuth token of the signed-in worker (see WorkdayAuth, the A2A client) and re
 """
 from __future__ import annotations
 
+import re
 import uuid
 
 import httpx
@@ -12,10 +13,10 @@ import httpx
 from .config import Settings
 from .workday_auth import NeedsLogin, WorkdayAuth
 
-READ_ONLY_PREFIX = (
-    "Read-only request: look things up and answer, but do not create, change, book or cancel "
-    "anything. If the user asks for a change, say it needs explicit confirmation first.\n\n"
-)
+# Hard guard in our code (no instruction text is sent to Workday: its safety filter can flag a
+# "read-only" prefix placed next to a write request). Workday's own approval step for tools that are not
+# read-only is the second gate. This is a keyword heuristic, not a security boundary.
+WRITE_INTENT = re.compile(r"\b(book|booking|submit|create|cancel|rescind|delete|update|approve|schedule)\b", re.I)
 
 
 def build_request(question: str, context_id: str | None = None) -> dict:
@@ -68,7 +69,11 @@ async def ask(
             f"The Workday agent sign-in is not connected ({e}). The owner must open "
             f"{s.public_base_url}/auth/a2a/login?key=<ADMIN_KEY> once."
         )
-    text = question if confirm_writes and s.enable_write_tools else READ_ONLY_PREFIX + question
+    writes_allowed = bool(confirm_writes and s.enable_write_tools)
+    if WRITE_INTENT.search(question) and not writes_allowed:
+        why = "writes are disabled on this service" if confirm_writes else "it needs confirm_writes=true after the user has agreed to a specific request"
+        return f"Not sent to Workday: this looks like a change (booking, cancelling, updating), and {why}."
+    text = question
     async with httpx.AsyncClient(timeout=300) as c:
         r = await c.post(
             s.a2a_url,

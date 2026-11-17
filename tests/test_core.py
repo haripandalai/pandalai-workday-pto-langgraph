@@ -151,9 +151,9 @@ def test_a2a_parse_result_variants():
     assert state == "error" and "Invalid or unsupported credentials" in text
 
 
-def test_a2a_ask_read_only_by_default_and_needs_login(tmp_path, monkeypatch):
+def test_a2a_ask_blocks_write_intent_locally_and_sends_plain_text(tmp_path, monkeypatch):
     s = S(pto_agent_wid="w", enable_write_tools=True)
-    seen = {}
+    seen = {"posts": 0}
 
     class R:
         status_code = 200
@@ -166,6 +166,7 @@ def test_a2a_ask_read_only_by_default_and_needs_login(tmp_path, monkeypatch):
         async def __aenter__(self): return self
         async def __aexit__(self, *a): return False
         async def post(self, url, headers=None, json=None):
+            seen["posts"] += 1
             seen["text"] = json["params"]["message"]["parts"][0]["text"]
             seen["auth"] = headers["Authorization"]
             return R()
@@ -175,12 +176,18 @@ def test_a2a_ask_read_only_by_default_and_needs_login(tmp_path, monkeypatch):
     auth = WorkdayAuth(s, store)
     assert "not connected" in asyncio.run(a2a_agent.ask(s, auth, "balances?"))
     store.save({"access_token": "tok", "refresh_token": "r", "expires_at": time.time() + 3600, "obtained_at": 0})
-    out = asyncio.run(a2a_agent.ask(s, auth, "balances?"))
+    # plain read goes through unchanged, with no prefix
+    out = asyncio.run(a2a_agent.ask(s, auth, "List my time off requests for 2027"))
     assert out.startswith("ok") and "[context_id: c1]" in out
-    assert seen["text"].startswith("Read-only request") and seen["auth"] == "Bearer tok"
-    asyncio.run(a2a_agent.ask(s, auth, "book 8h on 2027-02-10", confirm_writes=True))
-    assert seen["text"] == "book 8h on 2027-02-10"
-    # write flag on the request but writes disabled on the service -> stays read-only
+    assert seen["text"] == "List my time off requests for 2027" and seen["auth"] == "Bearer tok"
+    # a booking verb without confirm_writes is refused locally, nothing is posted
+    n = seen["posts"]
+    out = asyncio.run(a2a_agent.ask(s, auth, "Book 8 hours of vacation on 2027-02-11"))
+    assert out.startswith("Not sent to Workday") and seen["posts"] == n
+    # with confirm_writes on a service that allows writes, it is sent as written
+    asyncio.run(a2a_agent.ask(s, auth, "Yes, go ahead and submit the request: Vacation, 8 hours, 2027-02-11.", confirm_writes=True))
+    assert seen["posts"] == n + 1 and seen["text"].startswith("Yes, go ahead")
+    # writes disabled on the service: refused even with confirm_writes
     s2 = S(pto_agent_wid="w", enable_write_tools=False)
-    asyncio.run(a2a_agent.ask(s2, WorkdayAuth(s2, store), "book", confirm_writes=True))
-    assert seen["text"].startswith("Read-only request")
+    out = asyncio.run(a2a_agent.ask(s2, WorkdayAuth(s2, store), "submit it", confirm_writes=True))
+    assert "disabled on this service" in out and seen["posts"] == n + 1

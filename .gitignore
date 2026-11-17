@@ -6,3 +6,6 @@ __pycache__/
 *.token
 workday_token.json
 .DS_Store
+
+# ADK dev UI local session data
+.adk/

@@ -96,8 +96,11 @@ One-time setup:
 
 Notes: the agent card is at `https://odp.agent.workday.com/v1/a2a/<tenant>/<pto-agent WID>/.well-known/agent-card.json`.
 A Workday-hosted agent is **not** exposed as an MCP tool by the gateway (`tools/list` is empty); A2A is the route.
-Writes: the tool prefixes a read-only instruction unless `confirm_writes=true` and `ENABLE_WRITE_TOOLS=true`;
-that is a prompt-level guard, not a hard boundary. Pass the returned `context_id` back to continue a chat.
+Writes: `confirm_writes` must be true (and `ENABLE_WRITE_TOOLS=true`) for a message containing a booking verb
+(book, submit, create, cancel, ...) to be sent; otherwise the service refuses it locally. No instruction prefix is
+added, because Workday's safety filter (S22, "Illegal Activity", probabilistic) flagged a "read-only" prefix placed
+next to a booking request. Workday's own approval step for non-read-only tools is the second gate. The keyword
+check is a heuristic, not a security boundary. Pass the returned `context_id` back to continue a chat.
 
 ## Configuration
 
