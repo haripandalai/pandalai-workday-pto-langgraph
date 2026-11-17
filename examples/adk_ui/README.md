@@ -1,5 +1,17 @@
 # ADK dev UI for the PTO service
 
+Start and stop from any terminal (no Claude session needed). One-time: save the `SERVICE_KEY` from Render
+(service > Environment) with `umask 077; pbpaste | tr -d '[:space:]' > ~/.pto_service_key`, and keep your Gemini key in `~/.gemini_key`.
+
+```sh
+scripts/adk-ui.sh start     # first run builds .venv-adk; serves http://localhost:8090 (localhost only)
+scripts/adk-ui.sh status
+scripts/adk-ui.sh logs
+scripts/adk-ui.sh stop
+```
+
+Manual equivalent:
+
 ```sh
 python -m venv .venv-adk && . .venv-adk/bin/activate
 pip install -r ../requirements.txt
