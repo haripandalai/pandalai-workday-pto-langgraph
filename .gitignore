@@ -9,3 +9,4 @@ workday_token.json
 
 # ADK dev UI local session data
 .adk/
+.venv-adk/
