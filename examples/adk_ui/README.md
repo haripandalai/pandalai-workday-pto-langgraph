@@ -21,3 +21,36 @@ cd examples/adk_ui && adk web --port 8090 .
 ```
 Open http://localhost:8090, pick **pto_assistant**, and ask e.g. "List my time off between 2026-01-01 and 2027-12-31"
 or "Compare both tools on my PTO balances". The chat is read-only (`confirm_writes` is forced off).
+
+## Questions to try (all read-only)
+
+**Balances**
+- What are my PTO and Floating Holiday balances?
+- How many hours of PTO will I have left if I take 5 days off?
+
+**Your time off**
+- List my time off between 2026-01-01 and 2027-12-31.
+- Do I have any upcoming time off?
+- Show only my approved vacation.
+- What's the status of my time off on 2027-02-09?
+
+**What you can book**
+- Which time-off types am I eligible for?
+- Which dates are valid for time off in February 2027?
+- Is 2027-02-11 a valid day to take off?
+
+**Holidays**
+- What are the company holidays in 2027?
+- Which holidays fall on a weekday in March?
+
+**Reference**
+- What do the different time-off entry statuses mean?
+- What leave event statuses exist?
+
+**Using both tools**
+- Compare both tools on my PTO balance. (`ask_time_off` is our LangGraph agent; `ask_workday_agent` is Workday's own.)
+- Follow-ups such as "and for Floating Holiday?" work on the Workday-hosted agent, which keeps the chat via `context_id`.
+
+**Won't work here**
+- Booking or cancelling: refused locally in this read-only UI. Book in Agent Chat with `pto-agent`, where you approve it.
+- Anything outside time off (pay, org charts, other workers): those tools are left out on purpose.
